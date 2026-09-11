@@ -154,6 +154,26 @@ pasa del 70%, avisa:
   compitiendo por lo mismo se hunden las dos.
 - **entre 70 y 90%**: diferenciá el ángulo y enlazá al existente.
 
+## Canibalización entre lo ya publicado
+
+`cannibal.py` mira los posts publicados por pares: keyword, título y slug, y
+las consultas que Search Console o `dfs.py ranked` atribuyen a cada URL.
+Agrupa los que se pisan y propone qué hacer con cada par:
+
+```bash
+python cannibal.py src/content/blog --gsc exports/ --md canibalizacion.md
+```
+
+| Acción | Cuándo | Qué se hace |
+|---|---|---|
+| fusionar | mismo tema y misma intención, solapamiento alto | una URL absorbe a la otra, la otra redirige con 301 |
+| diferenciar | mismo tema, ángulo distinto | keywords separadas, título del secundario con su ángulo, enlace cruzado |
+| vigilar | comparten palabras, no intención | nada, salvo no acercarlos más |
+
+No cambia archivos. La fusión implica redirecciones y la decide una persona.
+El curso lo cuenta con un caso real: dos keywords en una página, y un salto
+del puesto 9 al 2 al separarlas.
+
 ## Clusters
 
 Devuelve pilar y satélites. El pilar cubre el término amplio, los satélites las

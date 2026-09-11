@@ -173,7 +173,37 @@ def main() -> int:
         check("escribe focus_keyword entera en el titulo",
               'focus_keyword: "que es la serigrafia"' in written, written[:200])
 
-    print("\n8. El presupuesto de DataForSEO responde sin red")
+    print("\n8. Canibalizacion y parser del sitio, sin red")
+    CANNIBAL = ROOT / "skills" / "pengu-keywords" / "scripts" / "cannibal.py"
+    SITE = ROOT / "skills" / "pengu-audit" / "scripts" / "site_check.py"
+    with tempfile.TemporaryDirectory() as tmp:
+        posts = Path(tmp) / "posts"
+        posts.mkdir()
+        for slug, title in (("guia-serigrafia", "Guia de serigrafia textil"),
+                            ("serigrafia-textil", "Serigrafia textil: que es y como se hace")):
+            (posts / f"{slug}.md").write_text(
+                f"---\ntitle: \"{title}\"\nslug: {slug}\nfocus_keyword: \"serigrafia textil\"\n"
+                "publishedAt: 2026-01-01\n---\n\nCuerpo.\n", encoding="utf-8")
+        out = Path(tmp) / "c.json"
+        proc = subprocess.run([sys.executable, str(CANNIBAL), str(posts), "--json", str(out)],
+                              capture_output=True, text=True, encoding="utf-8")
+        check("cannibal.py corre", proc.returncode == 0, (proc.stdout or proc.stderr)[-300:])
+        if out.exists():
+            pairs = json.loads(out.read_text(encoding="utf-8"))
+            check("propone fusionar la misma keyword",
+                  any(p["accion"] == "fusionar" for p in pairs), str(pairs)[:200])
+    site = load(SITE)
+    page = site.parse('<html><head><title>Uno | Marca | Marca</title>'
+                      '<link rel="canonical" href="https://x.com/a"/>'
+                      '<meta name="description" content="d"/></head>'
+                      '<body><h1>Hola</h1><h3>Salto</h3><h2>Dos</h2></body></html>')
+    check("site_check parsea titulo, canonical y encabezados",
+          page.title == "Uno | Marca | Marca" and page.canonical == "https://x.com/a"
+          and [l for l, _ in page.headings] == [1, 3, 2])
+    proc = subprocess.run([sys.executable, str(SITE), "--help"], capture_output=True, text=True)
+    check("site_check.py arranca", proc.returncode == 0)
+
+    print("\n9. El presupuesto de DataForSEO responde sin red")
     proc = subprocess.run([sys.executable, str(DFS), "costs"],
                           capture_output=True, text=True, encoding="utf-8")
     check("dfs.py costs", proc.returncode == 0, (proc.stderr or "")[:200])

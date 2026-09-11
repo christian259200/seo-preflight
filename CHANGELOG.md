@@ -27,6 +27,11 @@ siguen sin clics.
   `N-SLUG-YEAR` (año en el slug, que no se cambia). El JSON incluye la keyword
   y el título de cada archivo, para cruzarlo con Search Console.
 - `references/search-console.md` en `pengu-keywords`.
+- `pengu-audit/scripts/site_check.py`: comprobación técnica del sitio
+  publicado. robots.txt, sitemap, redirecciones de host, y por URL: 200 sin
+  redirigir, canonical propio, sin noindex, un H1, título sin marca duplicada.
+- `pengu-keywords/scripts/cannibal.py`: canibalización entre posts ya
+  publicados, por pares, con propuesta de fusionar, diferenciar o vigilar.
 
 ### Corregido
 

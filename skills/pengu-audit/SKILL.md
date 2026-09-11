@@ -52,6 +52,30 @@ también cortan.
 Sin dependencias externas. `pyyaml` mejora el parseo del frontmatter si está
 instalado, pero hay un parser propio de respaldo.
 
+## El sitio publicado: site_check.py
+
+El auditor de markdown no ve la plantilla. Un canonical que apunta a otra
+URL, un H1 vacío, una redirección que llegó tarde o un sitemap con URLs que
+devuelven 308 solo se ven pidiendo la página. `site_check.py` la pide.
+
+```bash
+python site_check.py https://www.example.com --md sitio.md
+python site_check.py https://www.example.com --only /blog/ --limit 60
+```
+
+Lee robots.txt y el sitemap (o índice de sitemaps), comprueba que las
+variantes del host (sin www, http) redirigen a la canónica en un salto, y
+para cada URL del sitemap: responde 200 sin redirigir, canonical
+autorreferente, sin noindex, un solo H1 con texto, título y descripción en
+rango, sin marca duplicada en el título, sin saltos de H1 a H3. Solo
+biblioteca estándar, con retardo entre peticiones. Código de salida 1 si hay
+errores.
+
+Lo que encontró la primera vez en un sitio real: cuatro páginas con la marca
+dos veces en el título porque la plantilla ya la añadía, un guion largo en
+robots.txt, y dieciocho rutas que Search Console tenía indexadas con y sin
+www aunque la redirección ya existía.
+
 ## Perfiles
 
 Cada plataforma rompe cosas distintas, así que cada una tiene su perfil.
@@ -167,6 +191,22 @@ Que la puerta se cierre sola:
 
 Con eso, un post con errores no llega a producción. Es la diferencia entre una
 regla y una garantía.
+
+## Códigos de site_check.py
+
+| Código | Nivel | Qué significa |
+|---|---|---|
+| `ROBOTS-MISSING` / `ROBOTS-BLOCKS-ALL` | ERROR | Sin robots.txt, o bloquea todo |
+| `ROBOTS-NO-SITEMAP` / `ROBOTS-DASH` | aviso | Sin línea Sitemap, guion largo |
+| `HOST-NO-REDIRECT` | ERROR | Una variante del host no llega a la canónica |
+| `HOST-CHAIN` / `HOST-TEMP-REDIRECT` | aviso | Más de un salto, o 302 |
+| `SITEMAP-MISSING` / `SITEMAP-DUPLICATE` | ERROR / aviso | |
+| `URL-STATUS` / `SITEMAP-REDIRECT` | ERROR | La URL del sitemap no responde 200 directa |
+| `NOINDEX-IN-SITEMAP` / `CANONICAL-OTHER` | ERROR | Señales contradictorias |
+| `H1-MISSING` / `H1-MULTIPLE` / `H1-EMPTY` | ERROR | Un H1 con texto por página |
+| `TITLE-DOUBLE-BRAND` | ERROR | La plantilla ya añade la marca |
+| `TITLE-LONG` / `TITLE-SHORT` / `DESC-MISSING` / `H2-MISSING` | aviso | |
+| `HEADING-SKIP` / `DESC-LEN` / `SITEMAP-NO-LASTMOD` | nota | |
 
 ## Añadir una comprobación
 
