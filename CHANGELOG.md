@@ -33,6 +33,9 @@ siguen sin clics.
 - `audit.py --url-prefix` mandaba menos que `pengu-seo.json`, al revés que
   todos los demás flags.
 - `smoke.py` prueba `gsc.py` y `kw_map.py` con una exportación sintética.
+- `E-NO-CTA` y `W-NO-CITE` casaban las páginas de conversión por subcadena:
+  un enlace a `buffer.com/pricing` contaba como conversión propia y dejaba
+  de contar como cita externa. Ahora una ruta solo cuenta en enlaces propios.
 
 ## 1.0.0
 

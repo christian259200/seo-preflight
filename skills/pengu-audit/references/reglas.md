@@ -100,7 +100,10 @@ o con `--money-page`. Sin ellas el auditor avisa al principio del informe de
 que el chequeo está apagado, en vez de callarlo.
 
 Un enlace cuenta como interno si es relativo, si apunta a uno de los `sites`
-declarados o a un subdominio suyo, o si coincide con una página de conversión.
+declarados o a un subdominio suyo, o si su host es una página de conversión
+declarada por dominio (`app.example.com`). Una página de conversión declarada
+por ruta (`/pricing`) solo cuenta en enlaces propios: `buffer.com/pricing` es
+una cita externa, no tu página de precios.
 
 Las imágenes **no** cuentan como enlaces. La expresión usa `(?<!!)` para
 distinguir `[texto](url)` de `![alt](url)`; sin eso, cada imagen inflaba la

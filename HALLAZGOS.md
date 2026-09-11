@@ -178,6 +178,7 @@ Estos aparecieron en las primeras pasadas y están corregidos.
 | 22 enlaces internos rotos | Eran imágenes: `![alt](/ruta.png)` contaba como enlace | La expresión pasó a llevar `(?<!!)` |
 | Marcador de IA `as an ai` | "treat the account as an AI training system" es prosa legítima | La cadena buscada pasó a ser `as an ai language model` |
 | Keyword ausente del primer párrafo | El renderizador antepone la caja de puntos clave, que también es respuesta | Se miran las primeras 120 palabras del cuerpo, no el primer bloque |
+| Post con conversión, y sin cita externa | `/pricing` casaba por subcadena con `buffer.com/pricing`: el enlace externo contaba como página de conversión y dejaba de contar como cita | Una ruta de conversión solo cuenta en enlaces propios; un dominio de conversión, por host exacto |
 
 El de las imágenes es el más instructivo: no solo generaba ruido, además inflaba
 la cuenta de enlaces internos, así que artículos sin enlaces reales pasaban el

@@ -362,12 +362,26 @@ def is_internal(url: str, profile: dict) -> bool:
     vivan en otro dominio, porque son el destino que se quiere medir."""
     if not re.match(r"^https?://", url, re.IGNORECASE):
         return True
-    if any(m in url for m in profile.get("money_pages", [])):
-        return True
     host = host_of(url)
     for site in profile.get("sites", []):
         site = site.lower().removeprefix("www.")
         if host == site or host.endswith("." + site):
+            return True
+    # Una pagina de conversion en otro dominio (app.ejemplo.com) se declara por
+    # host. Las que empiezan por "/" son rutas del propio sitio y solo cuentan
+    # en enlaces relativos: buffer.com/pricing no es tu pagina de precios.
+    for money in profile.get("money_pages", []):
+        if not money.startswith("/") and host == money.lower().removeprefix("www."):
+            return True
+    return False
+
+
+def is_money_link(url: str, profile: dict) -> bool:
+    for money in profile.get("money_pages", []):
+        if money.startswith("/"):
+            if is_internal(url, profile) and money in url:
+                return True
+        elif host_of(url) == money.lower().removeprefix("www."):
             return True
     return False
 
@@ -620,9 +634,8 @@ def audit_file(path: Path, profile: dict, site_root: Path | None,
                     "Por encima de 12 diluyen el valor de cada uno.")
 
     if profile["money_pages"]:
-        all_urls = " ".join(u for _, u in body_links) + " " + \
-                   " ".join(meta_link_urls)
-        if not any(m in all_urls for m in profile["money_pages"]):
+        candidate_urls = [u for _, u in body_links] + list(meta_link_urls)
+        if not any(is_money_link(u, profile) for u in candidate_urls):
             report.error("E-NO-CTA",
                          "Ningun enlace a una pagina de conversion.",
                          "El lector termina el articulo y solo puede irse a otro "
