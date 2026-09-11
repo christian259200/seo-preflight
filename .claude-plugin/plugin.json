@@ -1,0 +1,22 @@
+{
+  "name": "pengu-seo",
+  "version": "1.0.0",
+  "description": "Investigación de keywords con DataForSEO, redacción multiplataforma y auditoría on-page ejecutable. Tres skills que se llaman entre sí y comparten un formato de post canónico.",
+  "author": {
+    "name": "Christian Monge",
+    "url": "https://github.com/christian259200"
+  },
+  "homepage": "https://github.com/christian259200/seo-preflight",
+  "repository": "https://github.com/christian259200/seo-preflight",
+  "license": "MIT",
+  "keywords": [
+    "seo",
+    "dataforseo",
+    "blog",
+    "keyword-research",
+    "content-audit",
+    "geo",
+    "wordpress",
+    "nextjs"
+  ]
+}

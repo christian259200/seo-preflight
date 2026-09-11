@@ -1,0 +1,6 @@
+{
+  "sites": ["example.com"],
+  "money_pages": ["/pricing", "/contact", "app.example.com"],
+  "url_prefix": "/blog",
+  "site_root": "."
+}

@@ -1,0 +1,17 @@
+# credenciales, nunca
+.env
+.env.*
+!.env.example
+*dataforseo.json
+
+# salidas de trabajo
+*.json
+!.claude-plugin/plugin.json
+!pengu-seo.example.json
+plan.md
+informe*.txt
+
+# python
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,3 @@
+# Todo funciona sin instalar nada: los scripts usan solo la biblioteca estandar.
+# pyyaml es opcional y mejora el parseo del frontmatter.
+pyyaml>=6.0
