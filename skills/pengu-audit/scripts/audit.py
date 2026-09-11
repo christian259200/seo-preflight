@@ -32,6 +32,7 @@ import json
 import re
 import sys
 import unicodedata
+from datetime import datetime
 from pathlib import Path
 
 # La consola de Windows usa cp1252 por defecto y destroza los acentos del
@@ -320,6 +321,8 @@ def paragraphs(body: str) -> list:
 class Report:
     def __init__(self, name: str):
         self.name = name
+        self.keyword = ""
+        self.title = ""
         self.errors: list = []
         self.warns: list = []
         self.notes: list = []
@@ -334,9 +337,9 @@ class Report:
         self.notes.append({"code": code, "message": msg, "fix": fix})
 
     def as_dict(self) -> dict:
-        return {"file": self.name, "errors": self.errors,
-                "warnings": self.warns, "notes": self.notes,
-                "score": self.score()}
+        return {"file": self.name, "keyword": self.keyword, "title": self.title,
+                "errors": self.errors, "warnings": self.warns,
+                "notes": self.notes, "score": self.score()}
 
     def score(self) -> int:
         """0-100. Cada error pesa 12, cada warn 4, cada nota 1. No es una nota
@@ -414,6 +417,7 @@ def audit_file(path: Path, profile: dict, site_root: Path | None,
     keyword = first_present(meta, profile["keyword"]) or ""
     slug = first_present(meta, profile["slug"]) or path.stem
     fkw = fold(keyword)
+    report.keyword, report.title = str(keyword), str(title)
 
     # --- keyword ---------------------------------------------------------
     if not keyword:
@@ -737,6 +741,26 @@ def audit_file(path: Path, profile: dict, site_root: Path | None,
                         "Minusculas y guiones normales.")
 
     # --- frescura y autoria ----------------------------------------------
+    # Un ano viejo en el titulo es lo primero que ve quien busca, y lo primero
+    # que descarta. El slug no se toca: cambiarlo mata la URL indexada.
+    this_year = datetime.now().year
+    for field, value in (("titulo", title), ("descripcion", description)):
+        years = [int(y) for y in re.findall(r"\b(20[12]\d)\b", str(value))]
+        stale = [y for y in years if y < this_year]
+        if stale:
+            report.warn("W-YEAR-STALE",
+                        f"El {field} dice {stale[0]} y estamos en {this_year}.",
+                        "Actualiza el contenido y el ano, o quita el ano. Un "
+                        "ano viejo en la SERP hunde el CTR aunque rankees.")
+            break
+    if isinstance(slug, str):
+        old_years = [int(y) for y in re.findall(r"(20[12]\d)", slug) if int(y) < this_year]
+        if old_years:
+            report.note("N-SLUG-YEAR",
+                        f"El slug lleva el ano {old_years[0]}.",
+                        "No cambies el slug: la URL ya esta indexada. La "
+                        "proxima vez, sin ano en la URL.")
+
     if not first_present(meta, profile["updated"]):
         report.note("N-NO-UPDATED", "Sin fecha de actualizacion.",
                     "Sin dateModified, cada revision que hagas es invisible "
@@ -815,8 +839,9 @@ def main() -> None:
     ap.add_argument("target", help="archivo .md o carpeta")
     ap.add_argument("--profile", choices=sorted(PROFILES), default="canonical")
     ap.add_argument("--site-root", help="raiz del sitio, para verificar imagenes")
-    ap.add_argument("--url-prefix", default="/blog",
-                    help="prefijo de las URLs del blog, para detectar enlaces rotos")
+    ap.add_argument("--url-prefix", default=None,
+                    help="prefijo de las URLs del blog, para detectar enlaces "
+                         "rotos. Por defecto /blog, o lo que diga pengu-seo.json")
     ap.add_argument("--json", help="ruta del informe JSON")
     ap.add_argument("--strict", action="store_true",
                     help="los avisos tambien hacen fallar")
@@ -856,7 +881,8 @@ def main() -> None:
     site_root = Path(args.site_root) if args.site_root else None
     if not site_root and config.get("site_root") and config_path:
         site_root = (config_path.parent / config["site_root"]).resolve()
-    url_prefix = config.get("url_prefix", unmangle(args.url_prefix))
+    url_prefix = (unmangle(args.url_prefix) if args.url_prefix
+                  else config.get("url_prefix", "/blog"))
     known = collect_known_urls(target, url_prefix) if target.is_dir() else set()
 
     if config_path:

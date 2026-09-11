@@ -120,6 +120,52 @@ resultado es el mismo.
 
 ---
 
+## Lo que dice Search Console del sitio B
+
+Añadido en la 1.1.0, cuando `gsc.py` leyó por primera vez la exportación
+real de 28 días del sitio B. Ninguno de estos hallazgos sale del markdown;
+todos salen de lo que Google ya estaba haciendo con el sitio.
+
+| Hallazgo | Dato |
+|---|---:|
+| Impresiones en 28 días | 13.640 |
+| Clics en 28 días | 16 |
+| Páginas entre la posición 4 y la 20 con impresiones | 9 |
+| Páginas en el top 12 con CTR por debajo de la mitad de lo esperado | 5 |
+| Consultas con impresiones que ningún post cubre | 46 |
+| Rutas indexadas por duplicado (con www y sin www) | 18 |
+| Cuota de un solo post en las impresiones de AI Overviews | 80 % |
+
+### 13.640 impresiones, 16 clics
+
+El sitio no tenía un problema de contenido. Tenía un problema de snippet:
+Google mostraba las páginas y nadie las clicaba. Un post en posición 11,7 con
+2.664 impresiones tenía un clic. Con el CTR esperado para esa posición habría
+tenido cerca de 40.
+
+Es el hallazgo que justifica el paso 0 del flujo: antes de escribir un post
+nuevo, mirar qué muestra Google ya. Nueve páginas estaban a una sección nueva
+y tres enlaces internos del top 10, y el plan de contenido anterior proponía
+artículos nuevos sobre esos mismos temas.
+
+### La redirección que llegó tarde
+
+Dieciocho rutas aparecían dos veces en Search Console, con `www` y sin `www`.
+El sitio tenía la redirección 301 configurada. Google había indexado la
+variante sin `www` antes de que existiera, y cada variante seguía recibiendo
+impresiones y posición por su cuenta.
+
+No lo detecta ningún auditor de markdown, porque no está en el markdown. Por
+eso `gsc.py` junta las variantes en una fila y las lista aparte.
+
+### 50 posts sin keyword declarada, 50 propuestas que pasan el auditor
+
+`kw_map.py` propuso una `focus_keyword` para cada post sin ella. La regla que
+hizo falta: la propuesta tiene que estar **entera** en el título, porque es lo
+que exige `E-TITLE-KW`. Las primeras versiones proponían la consulta con más
+impresiones, y en tres de cada diez casos esa consulta no estaba en el
+título, así que el auditor la rechazaba en la siguiente pasada.
+
 ## Falsos positivos que hubo que corregir
 
 Un auditor que grita de más se ignora, y un auditor ignorado no sirve para nada.

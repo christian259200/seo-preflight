@@ -1,7 +1,7 @@
 {
   "name": "pengu-seo",
-  "version": "1.0.0",
-  "description": "Investigación de keywords con DataForSEO, redacción multiplataforma y auditoría on-page ejecutable. Tres skills que se llaman entre sí y comparten un formato de post canónico.",
+  "version": "1.1.0",
+  "description": "Search Console primero, investigación de keywords con DataForSEO, redacción multiplataforma y auditoría on-page ejecutable. Cuatro skills que se llaman entre sí y comparten un formato de post canónico.",
   "author": {
     "name": "Christian Monge",
     "url": "https://github.com/christian259200"
@@ -17,6 +17,8 @@
     "content-audit",
     "geo",
     "wordpress",
-    "nextjs"
+    "nextjs",
+    "search-console",
+    "ai-overview"
   ]
 }

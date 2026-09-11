@@ -20,6 +20,7 @@ Uso:
     python dfs.py serp "que es serigrafia" --loc Nicaragua
     python dfs.py difficulty "serigrafia managua" --loc Nicaragua
     python dfs.py intent "comprar termos personalizados" --loc Nicaragua
+    python dfs.py ranked example.com --limit 300 --yes --out ranked.json
     python dfs.py costs
     python dfs.py budget --daily 5.00 --threshold 0.25
 """
@@ -31,6 +32,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -60,7 +62,7 @@ COST = {
     "dataforseo_labs/google/keyword_overview/live": 0.05,
     "dataforseo_labs/google/bulk_keyword_difficulty/live": 0.01,
     "dataforseo_labs/google/search_intent/live": 0.01,
-    "dataforseo_labs/google/ranked_keywords/live": 0.05,
+    "dataforseo_labs/google/ranked_keywords/live": 0.05,   # mas 0.0001 por fila
     "dataforseo_labs/google/competitors_domain/live": 0.05,
     "dataforseo_labs/google/serp_competitors/live": 0.05,
     "on_page/instant_pages": 0.01,
@@ -400,9 +402,32 @@ def cmd_serp(args) -> dict:
         assume_yes=args.yes, no_cache=args.no_cache,
     )
     organic, features, paa = [], [], []
+    ai_overview = {"present": False, "cited_domains": [], "cited_urls": []}
+    snippet = None
     for result in results(data):
         for item in result.get("items") or []:
             kind = item.get("type")
+            if kind == "ai_overview":
+                # Quien cita el AI Overview es la lista de a quien hay que
+                # parecerse para entrar. Sin esto la SERP se lee incompleta.
+                ai_overview["present"] = True
+                refs = list(item.get("references") or [])
+                for block in item.get("items") or []:
+                    refs += block.get("references") or []
+                for ref in refs:
+                    url = ref.get("url") or ""
+                    dom = ref.get("domain") or re.sub(r"^https?://([^/]+).*", r"\1", url)
+                    if dom and dom not in ai_overview["cited_domains"]:
+                        ai_overview["cited_domains"].append(dom)
+                    if url and url not in ai_overview["cited_urls"]:
+                        ai_overview["cited_urls"].append(url)
+                features.append(kind)
+                continue
+            if kind == "featured_snippet":
+                snippet = {"domain": item.get("domain"), "url": item.get("url"),
+                           "title": item.get("title")}
+                features.append(kind)
+                continue
             if kind == "organic":
                 organic.append({
                     "position": item.get("rank_absolute"),
@@ -423,9 +448,42 @@ def cmd_serp(args) -> dict:
         "keyword": args.keyword,
         "organic": organic,
         "features": sorted(set(features)),
+        "ai_overview": ai_overview,
+        "featured_snippet": snippet,
         "people_also_ask": paa,
         "cached": data.get("_pengu_cache"),
     }
+
+
+def cmd_ranked(args) -> dict:
+    """Keyword, URL y posicion de todo lo que rankea un dominio, segun el
+    indice de DataForSEO. Es lo que la exportacion de Search Console no da:
+    que consulta lleva a que pagina. Cuesta por fila, por eso pide --yes."""
+    payload = loc_payload(args, {"target": args.domain, "limit": args.limit,
+                                 "order_by": ["ranked_serp_element.serp_item.etv,desc"]})
+    data = call(
+        "dataforseo_labs/google/ranked_keywords/live", payload,
+        assume_yes=args.yes, no_cache=args.no_cache,
+    )
+    rows = []
+    for result in results(data):
+        for item in result.get("items") or []:
+            kd = item.get("keyword_data") or {}
+            info = kd.get("keyword_info") or {}
+            serp = (item.get("ranked_serp_element") or {}).get("serp_item") or {}
+            rows.append({
+                "keyword": kd.get("keyword"),
+                "volume": info.get("search_volume") or 0,
+                "cpc": round(info.get("cpc") or 0, 2),
+                "difficulty": (kd.get("keyword_properties") or {}).get("keyword_difficulty"),
+                "intent": (kd.get("search_intent_info") or {}).get("main_intent"),
+                "position": serp.get("rank_absolute"),
+                "url": serp.get("url"),
+                "etv": round(serp.get("etv") or 0, 1),
+            })
+    rows.sort(key=lambda r: (r["position"] or 999, -r["volume"]))
+    return {"command": "ranked", "domain": args.domain, "rows": rows,
+            "cached": data.get("_pengu_cache")}
 
 
 def cmd_competitors(args) -> dict:
@@ -568,6 +626,7 @@ def main() -> None:
     p = add("intent"); p.add_argument("keywords", nargs="+"); p.set_defaults(fn=cmd_intent)
     p = add("serp"); p.add_argument("keyword"); p.add_argument("--depth", type=int, default=10); p.add_argument("--device", default="desktop"); p.set_defaults(fn=cmd_serp)
     p = add("competitors"); p.add_argument("keywords", nargs="+"); p.set_defaults(fn=cmd_competitors)
+    p = add("ranked"); p.add_argument("domain"); p.add_argument("--limit", type=int, default=300); p.set_defaults(fn=cmd_ranked)
     p = add("onpage"); p.add_argument("url"); p.set_defaults(fn=cmd_onpage)
     p = add("costs"); p.add_argument("--days", type=int, default=7); p.set_defaults(fn=cmd_costs)
     p = add("budget"); p.add_argument("--daily", type=float); p.add_argument("--threshold", type=float); p.add_argument("--mode", choices=["none", "threshold", "always"]); p.set_defaults(fn=cmd_budget)

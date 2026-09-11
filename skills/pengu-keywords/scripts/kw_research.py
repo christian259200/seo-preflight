@@ -347,14 +347,17 @@ def to_markdown(plan: dict) -> str:
         if not rows:
             continue
         out += [f"## {label.capitalize()} ({len(rows)})", "",
-                "| Keyword | Vol | KD | CPC | Intencion | SERP | Que escribir | Score |",
-                "| --- | ---: | ---: | ---: | --- | --- | --- | ---: |"]
+                "| Keyword | Vol | KD | CPC | Intencion | SERP | AIO | GSC | Que escribir | Score |",
+                "| --- | ---: | ---: | ---: | --- | --- | --- | --- | --- | ---: |"]
         for r in rows[:40]:
+            g = r.get("gsc")
+            gsc_cell = f"pos {g['position']:.0f}, {g['impressions']} impr" if g else "-"
+            aio = "si" if r.get("ai_overview") else ("no" if r.get("ai_overview") is False else "-")
             out.append(
                 f"| {r['keyword']} | {r['volume']} | "
                 f"{r['difficulty'] if r['difficulty'] is not None else '?'} | "
-                f"{r['cpc']} | {r['intent']} | {r.get('serp_kind') or '-'} | "
-                f"{r['que_escribir']} | {r['score']} |")
+                f"{r['cpc']} | {r['intent']} | {r.get('serp_kind') or '-'} | {aio} | "
+                f"{gsc_cell} | {r['que_escribir']} | {r['score']} |")
         out.append("")
 
     if plan["clusters"]:
@@ -397,6 +400,10 @@ def main() -> None:
     ap.add_argument("--serp-check", type=int, default=8,
                     help="cuantas finalistas verificar contra la SERP real")
     ap.add_argument("--min-volume", type=int, default=10)
+    ap.add_argument("--gsc", nargs="*", default=[],
+                    help="exportacion de Search Console (ZIP o carpeta). Las "
+                         "consultas que ya te muestran entran al pozo y las "
+                         "paginas que ya rankean se marcan para actualizar")
     ap.add_argument("--yes", action="store_true")
     ap.add_argument("--out", help="ruta del JSON")
     ap.add_argument("--md", help="ruta del informe markdown")
@@ -414,13 +421,28 @@ def main() -> None:
             if row.get("keyword"):
                 pool.setdefault(row["keyword"], row)
 
+    # 1b. Lo que Search Console ya muestra entra al pozo ---------------------
+    # Una consulta con impresiones reales es mejor semilla que cualquier
+    # sugerencia: Google ya decidio que el sitio pinta algo ahi.
+    gsc_queries: dict[str, dict] = {}
+    if args.gsc:
+        sys.path.insert(0, str(HERE))
+        import gsc as gsc_mod
+        gdata = gsc_mod.load(args.gsc)
+        for q in gdata["queries"]:
+            gsc_queries[fold(q["key"])] = q
+            pool.setdefault(q["key"], {"keyword": q["key"], "volume": 0,
+                                       "cpc": 0, "difficulty": None,
+                                       "intent": None, "from_gsc": True})
+
     if not pool:
         print(json.dumps({"error": "Sin resultados. Revisa credenciales, "
                                    "mercado y presupuesto."}, indent=2))
         sys.exit(1)
 
     # 2. Filtrar antes de gastar en dificultad ------------------------------
-    rows = [r for r in pool.values() if (r.get("volume") or 0) >= args.min_volume]
+    rows = [r for r in pool.values()
+            if (r.get("volume") or 0) >= args.min_volume or r.get("from_gsc")]
     rows.sort(key=lambda r: r.get("volume") or 0, reverse=True)
     rows = rows[:200]
 
@@ -454,6 +476,9 @@ def main() -> None:
             continue
         r["serp_kind"] = classify_serp(serp.get("features", []),
                                        serp.get("organic", []))
+        aio = serp.get("ai_overview") or {}
+        r["ai_overview"] = aio.get("present", False)
+        r["ai_overview_cites"] = (aio.get("cited_domains") or [])[:6]
         r["serp_top3"] = [o.get("domain") for o in serp.get("organic", [])[:3]]
         r["people_also_ask"] = serp.get("people_also_ask", [])[:8]
         r["score"], r["razones"] = opportunity(r, ceiling)
@@ -462,6 +487,15 @@ def main() -> None:
     for r in rows:
         r["banda"] = band(r["score"])
         r["que_escribir"] = content_type(r["intent"], r.get("serp_kind"))
+        g = gsc_queries.get(fold(r["keyword"]))
+        if g:
+            r["gsc"] = {"impressions": g["impressions"], "clicks": g["clicks"],
+                        "position": g["position"]}
+            if g["position"] <= 20 and g["impressions"] >= 20:
+                r["que_escribir"] = "actualizar la pagina que ya rankea"
+                r["razones"].insert(0, f"Search Console ya te muestra en posicion "
+                                       f"{g['position']:.0f} con {g['impressions']} "
+                                       "impresiones: empuja esa pagina, no escribas otra")
 
     # 7. Clusters y canibalizacion -----------------------------------------
     clusters = build_clusters([r for r in rows if r["banda"] != "descartar"])

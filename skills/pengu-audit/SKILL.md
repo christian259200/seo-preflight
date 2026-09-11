@@ -13,7 +13,7 @@ argument-hint: "[ruta] [--profile wordpress|nextjs|canonical]"
 license: MIT
 metadata:
   author: Christian Monge
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Pengu Audit
@@ -120,7 +120,8 @@ archivo con `--site-root`.
 **URL.** Menos de 100 caracteres, máximo dos directorios, sin mayúsculas ni
 guiones bajos, compartiendo alguna palabra con la keyword.
 
-**Frescura y autoría.** Fecha de actualización. Autor con enlace o biografía.
+**Frescura y autoría.** Fecha de actualización. Ningún año anterior al actual
+en el título o la descripción. Autor con enlace o biografía.
 
 **Estilo.** Sin guiones largos ni cortos, con números de línea. Sin marcadores
 de plantilla. Sin aperturas de relleno.

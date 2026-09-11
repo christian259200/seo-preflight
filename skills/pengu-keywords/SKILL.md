@@ -6,13 +6,14 @@ description: >-
   por volumen, descarta lo que no se puede ganar todavía, agrupa en clusters y
   avisa de canibalización contra el contenido publicado. Usa esta skill cuando
   el usuario pida keyword research, pregunte sobre qué escribir, quiera un plan
-  de contenido, o mencione DataForSEO, volumen de búsqueda o dificultad.
+  de contenido, mencione DataForSEO, volumen de búsqueda o dificultad, o
+  comparta una exportación de Search Console y pregunte qué hacer con ella.
 user-invocable: true
-argument-hint: "[semilla] [--loc pais] [--lang idioma]"
+argument-hint: "[semilla] [--loc pais] [--lang idioma] [--gsc exportacion]"
 license: MIT
 metadata:
   author: Christian Monge
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Pengu Keywords
@@ -37,6 +38,36 @@ nuevo. El techo se fija con `--authority`.
 **El volumen sin intención comercial no paga nada.** 5.000 búsquedas de "qué es
 X" valen menos que 200 de "X en Managua precio" si vendés X.
 
+## Primero Search Console, después keywords nuevas
+
+Si el sitio ya tiene tráfico de búsqueda, lo primero no es buscar keywords:
+es leer para qué te muestra Google ya. Un sitio con miles de impresiones y
+una docena de clics no necesita más artículos, necesita títulos que se
+cliquen y una sección nueva en las páginas que están en la posición 9.
+
+```bash
+cd skills/pengu-keywords/scripts
+
+# 1. Qué pasa hoy: casi top 10, CTR bajo, consultas sin página, URLs duplicadas
+python gsc.py exports/ --content-dir src/content/blog --brand mimarca --md informe.md
+
+# 2. El mapa de keywords: cada post, su keyword, su posición, su fecha
+python kw_map.py src/content/blog --gsc exports/ --md mapa.md
+python kw_map.py src/content/blog --gsc exports/ --apply     # escribe focus_keyword donde falte
+
+# 3. Solo entonces, keywords nuevas, con Search Console como contexto
+python kw_research.py "semilla" --gsc exports/ --content-dir src/content/blog --md plan.md
+```
+
+`gsc.py` lee los ZIP que exporta la consola tal cual, en español o en inglés,
+sin credenciales ni red. El detalle de cada lectura está en
+[`references/search-console.md`](references/search-console.md).
+
+Con `--gsc`, `kw_research.py` mete las consultas que ya te muestran en el pozo
+y, para las que ya rankean en posición 20 o mejor, cambia la recomendación a
+**actualizar la página que ya rankea**. Es el error más caro que evita:
+escribir el segundo artículo sobre lo que el primero casi consigue.
+
 ## Uso
 
 ```bash
@@ -57,8 +88,17 @@ python dfs.py serp "que es serigrafia" --loc Nicaragua --lang Spanish
 python dfs.py intent "comprar termos personalizados" --lang Spanish
 python dfs.py ideas "articulos promocionales" --loc Nicaragua --limit 200
 python dfs.py onpage https://example.com/que-es-serigrafia/
+python dfs.py ranked example.com --limit 300 --yes --out ranked.json
 python dfs.py costs
 ```
+
+`serp` devuelve también `ai_overview`: si la consulta muestra un AI Overview
+y a qué dominios cita. Esa lista es a quién hay que parecerse para entrar.
+
+`ranked` devuelve keyword, URL y posición de todo lo que rankea un dominio.
+Es el cruce consulta-página que la exportación de Search Console no da, y
+`kw_map.py --ranked ranked.json` lo usa para elegir la keyword de cada post
+con datos. Cuesta por fila, así que siempre pide `--yes`.
 
 ## Control de gasto
 
@@ -100,6 +140,10 @@ imposibles.
 
 La columna **Qué escribir** es lo más importante de la tabla. Cuando dice
 "página comercial o categoría", escribir un artículo es tirar el trabajo.
+Cuando dice "actualizar la página que ya rankea", la columna **GSC** dice en
+qué posición y con cuántas impresiones: se empuja esa página, no se escribe
+otra. **AIO** dice si la SERP muestra un AI Overview; si sí, el artículo
+necesita un párrafo de respuesta directa arriba y datos propios para entrar.
 
 ## Canibalización
 

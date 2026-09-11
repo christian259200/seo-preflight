@@ -12,7 +12,7 @@ argument-hint: "[tema o keyword] [--to wordpress|nextjs]"
 license: MIT
 metadata:
   author: Christian Monge
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Pengu Write

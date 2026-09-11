@@ -125,7 +125,55 @@ def main() -> int:
             check("los enlaces internos se inyectaron",
                   text.count("](https://example.com/") == 3)
 
-    print("\n7. El presupuesto de DataForSEO responde sin red")
+    print("\n7. Search Console y el mapa de keywords, con una exportacion sintetica")
+    GSC = ROOT / "skills" / "pengu-keywords" / "scripts" / "gsc.py"
+    KWMAP = ROOT / "skills" / "pengu-keywords" / "scripts" / "kw_map.py"
+    with tempfile.TemporaryDirectory() as tmp:
+        exports = Path(tmp) / "exports"
+        exports.mkdir()
+        (exports / "Consultas.csv").write_text(
+            "Consultas principales,Clics,Impresiones,CTR,Posici\u00f3n\n"
+            "que es la serigrafia,3,120,2.5%,8.4\n"
+            "serigrafia textil precio,0,90,0%,14.2\n"
+            "camisetas personalizadas managua,0,60,0%,45\n",
+            encoding="utf-8-sig")
+        (exports / "P\u00e1ginas.csv").write_text(
+            "P\u00e1ginas principales,Clics,Impresiones,CTR,Posici\u00f3n\n"
+            "https://www.example.com/blog/que-es-la-serigrafia,3,200,1.5%,8.4\n"
+            "https://example.com/blog/que-es-la-serigrafia,0,40,0%,9.1\n"
+            "https://www.example.com/blog/otro,0,30,0%,55\n",
+            encoding="utf-8-sig")
+        posts = Path(tmp) / "posts"
+        posts.mkdir()
+        (posts / "que-es-la-serigrafia.md").write_text(
+            "---\ntitle: \"Qu\u00e9 es la serigraf\u00eda y cu\u00e1ndo conviene\"\n"
+            "slug: que-es-la-serigrafia\npublishedAt: 2026-01-01\n---\n\nCuerpo.\n",
+            encoding="utf-8")
+        out_json = Path(tmp) / "gsc.json"
+        proc = subprocess.run(
+            [sys.executable, str(GSC), str(exports), "--content-dir", str(posts),
+             "--json", str(out_json), "--min-impressions", "10"],
+            capture_output=True, text=True, encoding="utf-8")
+        check("gsc.py corre", proc.returncode == 0, (proc.stdout or proc.stderr)[-300:])
+        if out_json.exists():
+            data = json.loads(out_json.read_text(encoding="utf-8"))
+            check("junta www y sin www en una fila",
+                  any(len(d["urls"]) == 2 for d in data["duplicates"]))
+            sd = [p["path"] for p in data["striking_distance"]]
+            check("detecta la pagina casi en el top 10",
+                  "/blog/que-es-la-serigrafia" in sd, str(sd))
+            unc = [q["key"] for q in data["queries"]["uncovered"]]
+            check("consulta sin pagina", "camisetas personalizadas managua" in unc, str(unc))
+        proc = subprocess.run(
+            [sys.executable, str(KWMAP), str(posts), "--gsc", str(exports), "--apply",
+             "--json", str(Path(tmp) / "map.json")],
+            capture_output=True, text=True, encoding="utf-8")
+        check("kw_map.py corre", proc.returncode == 0, (proc.stdout or proc.stderr)[-300:])
+        written = (posts / "que-es-la-serigrafia.md").read_text(encoding="utf-8")
+        check("escribe focus_keyword entera en el titulo",
+              'focus_keyword: "que es la serigrafia"' in written, written[:200])
+
+    print("\n8. El presupuesto de DataForSEO responde sin red")
     proc = subprocess.run([sys.executable, str(DFS), "costs"],
                           capture_output=True, text=True, encoding="utf-8")
     check("dfs.py costs", proc.returncode == 0, (proc.stderr or "")[:200])

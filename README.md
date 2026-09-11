@@ -23,7 +23,7 @@ devuelve código 1, más las dos skills que lo alimentan.
 
 | Skill | Para qué |
 |---|---|
-| **pengu-keywords** | Decide qué escribir. DataForSEO con control de gasto, priorización por oportunidad, clusters y aviso de canibalización |
+| **pengu-keywords** | Decide qué escribir. Lee Search Console primero (casi top 10, CTR bajo, consultas sin página), mantiene el mapa de keywords, y después DataForSEO con control de gasto, priorización por oportunidad, clusters y aviso de canibalización |
 | **pengu-write** | Escribe en formato canónico y renderiza a WordPress o Next.js |
 | **pengu-audit** | Impide que salga algo malo. 40 comprobaciones, tres perfiles, código de salida |
 
@@ -70,6 +70,10 @@ línea.
 ## El flujo
 
 ```bash
+# 0. Qué muestra Google ya. Sin red, sin créditos: solo la exportación de Search Console
+python skills/pengu-keywords/scripts/gsc.py exports/ --content-dir posts/ --md informe.md
+python skills/pengu-keywords/scripts/kw_map.py posts/ --gsc exports/ --md mapa.md
+
 # 1. Qué escribir
 python skills/pengu-keywords/scripts/kw_research.py "articulos promocionales" \
   --loc Nicaragua --lang Spanish --authority low \
@@ -88,7 +92,10 @@ python skills/pengu-write/scripts/render.py posts/nuevo.md --to wordpress --out 
 python skills/pengu-audit/scripts/audit.py publicar/nuevo.md --profile wordpress
 ```
 
-El paso 5 existe porque cada plataforma rompe cosas distintas.
+El paso 5 existe porque cada plataforma rompe cosas distintas. El paso 0
+existe porque un sitio que ya rankea no empieza de cero: en el sitio B de
+abajo, 13.600 impresiones daban 16 clics, y nueve páginas estaban entre la
+posición 4 y la 20. Ese trabajo rinde más que cualquier post nuevo.
 
 ## Qué encuentra el auditor
 
@@ -101,6 +108,8 @@ Contra 81 posts publicados de dos sitios reales:
 | Guiones largos, prohibidos en tres documentos | 7 |
 | Schema `FAQPage` sin FAQ visible en la página | 3 |
 | Enlace markdown dentro del YAML, rompe el build | 2 |
+| Páginas en el top 12 con CTR por debajo de la mitad de lo esperado | 5 de 9 |
+| Rutas indexadas por duplicado (con y sin www) | 18 |
 
 Todos verificados a mano antes de darlos por buenos. El detalle completo, con
 los falsos positivos que hubo que corregir y lo que el auditor no ve, está en

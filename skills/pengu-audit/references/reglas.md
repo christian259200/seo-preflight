@@ -132,6 +132,8 @@ cuenta de enlaces internos y aparecía como enlace roto.
 | Código | Nivel | Umbral | Motivo |
 |---|---|---|---|
 | `N-NO-UPDATED` | nota | fecha de actualización | Sin `dateModified` las revisiones son invisibles |
+| `W-YEAR-STALE` | WARN | ningún año anterior al actual en título o descripción | Un año viejo en la SERP hunde el CTR aunque rankees |
+| `N-SLUG-YEAR` | nota | año en el slug | No se cambia el slug; la próxima vez, sin año en la URL |
 | `W-NO-AUTHOR` | WARN | autor presente | La parte más barata del E-E-A-T |
 | `N-AUTHOR-THIN` | nota | autor con url o bio | Un Person sin enlace no es entidad verificable |
 

@@ -11,7 +11,7 @@ argument-hint: "[keywords|write|audit|plan] [tema o ruta]"
 license: MIT
 metadata:
   author: Christian Monge
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Pengu SEO
@@ -41,6 +41,7 @@ Por eso el centro de este proyecto no es un prompt largo. Es
 ## El flujo completo
 
 ```
+0. console    ->  qué muestra Google ya: casi top 10, CTR bajo, huecos
 1. keywords   ->  qué keyword, con qué intención, contra qué SERP
 2. brief      ->  H2, preguntas reales de la SERP, enlaces, ángulo propio
 3. write      ->  post en formato canónico
@@ -48,13 +49,23 @@ Por eso el centro de este proyecto no es un prompt largo. Es
 5. render     ->  al formato de la plataforma destino
 6. audit      ->  otra vez, con el perfil de esa plataforma
 7. publicar
+8. mapa       ->  cada mes, volver a las páginas en posición 4 a 20
 ```
+
+El paso 0 existe porque un sitio que ya rankea no empieza de cero. Antes de
+escribir nada nuevo, `gsc.py` dice qué páginas están en la posición 9 sin
+clics y qué consultas ya te muestran sin que tengas página. Ese trabajo rinde
+más que cualquier post nuevo, y no cuesta un solo crédito.
 
 Los pasos 4 y 6 no son opcionales. El 6 existe porque cada plataforma rompe
 cosas distintas: WordPress se traga enlaces cuando dos anchors caen en el mismo
 párrafo, y Next.js emite `FAQPage` con contenido que no se ve en la página.
 
 ## Cuándo usar cada una
+
+**"Aquí tienes mi Search Console"**, **"¿qué hago con estos datos?"** →
+`pengu-keywords`, empezando por `gsc.py` y `kw_map.py`. Se mira lo que ya
+pasa antes de proponer nada nuevo.
 
 **"¿Sobre qué escribo?"** o **"buscá keywords de X"** → `pengu-keywords`.
 Nunca escribas antes de mirar la SERP: la mitad de las keywords informativas
