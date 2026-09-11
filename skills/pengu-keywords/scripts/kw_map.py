@@ -63,7 +63,8 @@ def read_post(path: Path) -> dict:
 
     seo_block = re.search(r"^seo:\n((?:[ \t]+.*\n?)+)", head, re.MULTILINE)
     meta_title = get("metaTitle", seo_block.group(1)) if seo_block else ""
-    body = text.split("\n---", 2)[2] if text.startswith("---") and text.count("\n---") >= 1 else text
+    parts = text.split("\n---", 1) if text.startswith("---") else [text]
+    body = parts[1] if len(parts) > 1 else text
     body = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", body)
     return {
         "file": path.name,
