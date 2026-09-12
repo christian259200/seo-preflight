@@ -11,7 +11,7 @@ argument-hint: "[keywords|write|audit|plan] [tema o ruta]"
 license: MIT
 metadata:
   author: Christian Monge
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Pengu SEO
@@ -103,6 +103,38 @@ acuerde.
 - **Todo post lleva un camino de conversión.** Un artículo que solo enlaza a
   otros artículos es tráfico que no factura.
 - **El H1 lo pone la plantilla.** En el cuerpo se empieza en `##`.
+
+## Cómo se entrega una recomendación
+
+Una lista de hallazgos no es un plan. Cada recomendación que salga de estas
+skills lleva cuatro cosas, o no sale:
+
+1. **En qué se apoya.** El dato que la sostiene: la posición en Search
+   Console, el código del auditor, la SERP que se miró.
+2. **Qué destraba y qué la bloquea.** Reescribir el título de una página en
+   posición 9 no sirve si el canonical apunta a otra URL; eso va primero.
+3. **Cómo sabremos que falló.** Un número y una fecha: "si en 21 días el CTR
+   de esa consulta no pasa del 2%, el título nuevo no funcionó".
+4. **Qué mirar mientras tanto.** El indicador que se ve antes que el tráfico:
+   impresiones de la consulta, posición media, páginas indexadas.
+
+El formato viene de la disciplina de falsabilidad de claude-seo: una
+recomendación que no puede fallar no es una recomendación, es una opinión.
+
+Lo que Google cambió y toca a estas reglas está, con fecha y fuente, en
+[`references/google-updates.md`](references/google-updates.md). Manda sobre
+cualquier consejo de las referencias que lo contradiga.
+
+## Instalar como plugin
+
+```
+/plugin marketplace add christian259200/seo-preflight
+/plugin install pengu-seo@seo-preflight
+```
+
+Trae las cuatro skills y un hook que audita cada post al guardarlo (ver
+`pengu-audit`). Copiar `skills/` a `~/.claude/skills/` sigue funcionando y
+no instala el hook.
 
 ## Configuración
 

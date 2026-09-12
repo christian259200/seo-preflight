@@ -1,5 +1,41 @@
 # Cambios
 
+## 1.2.0
+
+Lo que un despliegue rompe se ve el mismo día, y las reglas corren al
+guardar, no solo cuando alguien se acuerda de lanzar el auditor. Varias
+ideas vienen de claude-seo (MIT), adaptadas a scripts sin dependencias.
+
+### Nuevo
+
+- `site_check.py --compare anterior.json`: deriva entre dos comprobaciones.
+  Canonical distinto o ausente, `noindex` nuevo, H1, título o JSON-LD que
+  desaparecen y URLs que dejan de responder 200 son críticos y devuelven
+  código 1. Cada `--json` guarda una instantánea por URL, incluidos los
+  tipos de schema, así que cualquier informe viejo sirve de base.
+- Plugin de Claude Code: `.claude-plugin/marketplace.json` y un hook
+  `PostToolUse` (`hooks/audit_on_save.py`) que audita cada `.md` con
+  frontmatter al guardarlo, si hay `pengu-seo.json` hacia arriba. Con
+  errores devuelve 2 y Claude ve el informe.
+- `audit.py`: `W-AI-PHRASE`, muletillas de IA en inglés y español. Lista
+  corta a propósito.
+- `pengu-seo.json` acepta `profile`, y `audit.py` lo usa cuando no se pasa
+  `--profile`. El hook no necesita argumentos.
+- `pengu-seo/references/google-updates.md`: lo que Google cambió y toca a
+  estas reglas, con fecha y fuente de Google en cada fila.
+- `pengu-seo/SKILL.md`: formato de recomendación con dato de apoyo,
+  dependencia, criterio de fallo e indicador adelantado.
+
+### Cambiado
+
+- `LLMS-TXT-MISSING` pasa de aviso a nota. Google Search ignora `llms.txt`
+  (guía de optimización para IA generativa, 2026-06-29) y ningún buscador
+  de IA ha confirmado que lo lea. `geo.md` deja de venderlo como palanca.
+- Las referencias dicen que `FAQPage` ya no da resultados enriquecidos
+  (2026-05-07). `E-FAQ-INVISIBLE` se mantiene: schema sin contenido visible
+  sigue siendo engañoso, y la FAQ visible es lo que extraen las respuestas
+  de IA.
+
 ## 1.1.0
 
 Search Console entra al flujo. Antes las tres skills empezaban de cero, como

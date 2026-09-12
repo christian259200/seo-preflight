@@ -208,6 +208,86 @@ def main() -> int:
                           capture_output=True, text=True, encoding="utf-8")
     check("dfs.py costs", proc.returncode == 0, (proc.stderr or "")[:200])
 
+    print("\n10. Deriva entre dos comprobaciones del sitio")
+    base = {"urls": [
+        {"url": "https://www.example.com/a", "snapshot": {"status": 200, "title": "A",
+         "description": "d", "canonical": "https://www.example.com/a", "robots": "",
+         "h1": ["Hola"], "h2": ["Uno"], "jsonld": ["Article"]}},
+        {"url": "https://www.example.com/b", "snapshot": {"status": 200, "title": "B",
+         "description": "d", "canonical": "https://www.example.com/b", "robots": "",
+         "h1": ["B"], "h2": [], "jsonld": []}},
+    ]}
+    now = {"urls": [
+        {"url": "https://www.example.com/a", "snapshot": {"status": 200, "title": "A nuevo",
+         "description": "d", "canonical": "https://www.example.com/otra", "robots": "noindex",
+         "h1": [], "h2": ["Uno", "Dos"], "jsonld": []}},
+        {"url": "https://www.example.com/c", "snapshot": {"status": 200}},
+    ]}
+    drift = site.compare(base, now)
+    codes = {f["code"]: f["level"] for f in drift}
+    check("canonical distinto es critico", codes.get("DRIFT-CANONICAL") == "critical", str(codes))
+    check("noindex nuevo es critico", codes.get("DRIFT-NOINDEX") == "critical")
+    check("H1 y schema perdidos son criticos",
+          codes.get("DRIFT-H1-GONE") == "critical" and codes.get("DRIFT-SCHEMA-GONE") == "critical")
+    check("titulo cambiado es aviso", codes.get("DRIFT-TITLE") == "warn")
+    check("URL que salio y URL nueva",
+          codes.get("DRIFT-URL-GONE") == "warn" and codes.get("DRIFT-URL-NEW") == "info")
+    check("los criticos van primero", drift[0]["level"] == "critical")
+    page = site.parse('<html><head><script type="application/ld+json">'
+                      '{"@context":"https://schema.org","@graph":[{"@type":"Article"},'
+                      '{"@type":["Person","Thing"]}]}</script></head><body><h1>x</h1></body></html>')
+    check("lee los tipos de JSON-LD, incluido @graph",
+          page.jsonld == ["Article", "Person", "Thing"], str(page.jsonld))
+
+    print("\n11. Muletillas de IA, perfil desde la configuracion y hook al guardar")
+    HOOK = ROOT / "hooks" / "audit_on_save.py"
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "pengu-seo.json").write_text(
+            json.dumps({"sites": ["example.com"], "profile": "canonical"}), encoding="utf-8")
+        posts = root / "posts"
+        posts.mkdir()
+        text = EXAMPLE.read_text(encoding="utf-8")
+        marker = "\n## "
+        idx = text.index(marker, text.index("\n---", 4) + 4)
+        bad = text[:idx] + "\n\nLet's delve into this tapestry of options.\n" + text[idx:]
+        (posts / "malo.md").write_text(bad, encoding="utf-8")
+        out = root / "malo.json"
+        proc = subprocess.run(
+            [sys.executable, str(AUDIT), str(posts / "malo.md"), "--json", str(out)],
+            capture_output=True, text=True, encoding="utf-8")
+        data = json.loads(out.read_text(encoding="utf-8")) if out.exists() else {}
+        check("el perfil sale de pengu-seo.json", data.get("profile") == "canonical", str(data)[:120])
+        warns = [w["code"] for f in data.get("files", []) for w in f["warnings"]]
+        check("W-AI-PHRASE avisa", "W-AI-PHRASE" in warns, str(warns))
+        hook = subprocess.run(
+            [sys.executable, str(HOOK)],
+            input=json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(posts / "malo.md")}}),
+            capture_output=True, text=True, encoding="utf-8")
+        check("el hook deja pasar un post con avisos", hook.returncode == 0, hook.stderr[:200])
+        (posts / "roto.md").write_text("---\ntitle: x\n---\n\nCorto.\n", encoding="utf-8")
+        hook = subprocess.run(
+            [sys.executable, str(HOOK)],
+            input=json.dumps({"tool_input": {"file_path": str(posts / "roto.md")}}),
+            capture_output=True, text=True, encoding="utf-8")
+        check("el hook corta un post con errores", hook.returncode == 2, str(hook.returncode))
+        (root / "NOTAS.md").write_text("# Notas\n\nSin frontmatter.\n", encoding="utf-8")
+        hook = subprocess.run(
+            [sys.executable, str(HOOK), str(root / "NOTAS.md")],
+            capture_output=True, text=True, encoding="utf-8")
+        check("el hook ignora un .md sin frontmatter", hook.returncode == 0)
+
+    print("\n12. Los enlaces relativos de la documentacion existen")
+    import re as _re
+    broken = []
+    for doc in [ROOT / "README.md", *ROOT.glob("skills/*/SKILL.md"), *ROOT.glob("skills/*/references/*.md")]:
+        for target in _re.findall(r"\]\(([^)#\s]+)\)", doc.read_text(encoding="utf-8")):
+            if "://" in target or target.startswith("mailto:") or "." not in target:
+                continue  # ejemplos como [texto](url) no son enlaces
+            if not (doc.parent / target).exists():
+                broken.append(f"{doc.relative_to(ROOT)} -> {target}")
+    check("sin enlaces rotos", not broken, "; ".join(broken[:5]))
+
     print()
     if failures:
         print(f"{len(failures)} fallos: {', '.join(failures)}")

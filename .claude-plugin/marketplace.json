@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "seo-preflight",
+  "owner": {
+    "name": "Christian Monge"
+  },
+  "metadata": {
+    "description": "SEO de contenido que se ejecuta: Search Console, keyword research, un formato de post comun y un auditor con codigo de salida que ademas corre al guardar."
+  },
+  "plugins": [
+    {
+      "name": "pengu-seo",
+      "source": "./",
+      "description": "Cuatro skills (pengu-seo, pengu-keywords, pengu-write, pengu-audit) y un hook PostToolUse que audita cada post al guardarlo. Solo biblioteca estandar de Python. Ninguna credencial en el repositorio.",
+      "author": {
+        "name": "Christian Monge",
+        "url": "https://github.com/christian259200"
+      },
+      "category": "marketing",
+      "keywords": ["seo", "content", "search-console", "audit", "geo", "spanish"]
+    }
+  ]
+}

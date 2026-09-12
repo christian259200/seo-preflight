@@ -13,7 +13,7 @@ argument-hint: "[ruta] [--profile wordpress|nextjs|canonical]"
 license: MIT
 metadata:
   author: Christian Monge
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Pengu Audit
@@ -76,6 +76,44 @@ dos veces en el título porque la plantilla ya la añadía, un guion largo en
 robots.txt, y dieciocho rutas que Search Console tenía indexadas con y sin
 www aunque la redirección ya existía.
 
+### Deriva: qué cambió desde la última vez
+
+Un despliegue que rompe el SEO se nota cuando cae el tráfico, semanas
+después. Con dos informes se nota el mismo día:
+
+```bash
+python site_check.py https://www.example.com --json lunes.json
+# ... un despliegue después ...
+python site_check.py https://www.example.com --json martes.json --compare lunes.json
+```
+
+Compara URL por URL lo que el script ya mide y lo clasifica:
+
+| Nivel | Qué | Por qué |
+|---|---|---|
+| crítico | canonical distinto o ausente, `noindex` nuevo, H1 o `<title>` que desaparecen, JSON-LD que desaparece, URL que deja de responder 200 | Tumba tráfico en días. Código de salida 1 |
+| aviso | texto del título, de la descripción o del H1 cambiado, URL que salió del sitemap | A veces es intencional. Vigilar el CTR dos semanas |
+| info | H2 distintos, schema nuevo o de otro tipo, URL nueva | Para saber que pasó |
+
+Cada informe `--json` guarda una instantánea por URL (estado, título,
+descripción, canonical, robots, H1, H2, tipos de JSON-LD), así que
+cualquier informe viejo sirve de base. Las reglas y los niveles vienen de
+la práctica de seo-drift en claude-seo (MIT), recortadas a lo que este
+script mide sin API de pago.
+
+## Auditar al guardar
+
+Instalado como plugin, un hook `PostToolUse` corre `audit.py` sobre cada
+`.md` con frontmatter que Claude edite o cree, si hay un `pengu-seo.json`
+hacia arriba. Con errores, el hook devuelve 2 y Claude ve el informe para
+corregirlo antes de seguir; los avisos se muestran y no cortan. Un README
+o una nota sin frontmatter no se auditan.
+
+Sin plugin, el mismo hook se declara a mano en `~/.claude/settings.json`;
+el encabezado de [`hooks/audit_on_save.py`](../../hooks/audit_on_save.py)
+trae el bloque. El perfil sale de `pengu-seo.json` (`"profile": "nextjs"`),
+así que el hook no necesita argumentos.
+
 ## Perfiles
 
 Cada plataforma rompe cosas distintas, así que cada una tiene su perfil.
@@ -101,12 +139,14 @@ arriba:
   "sites": ["example.com"],
   "money_pages": ["/pricing", "/contact", "app.example.com"],
   "url_prefix": "/blog",
-  "site_root": "."
+  "site_root": ".",
+  "profile": "nextjs"
 }
 ```
 
 | Campo | Para qué |
 |---|---|
+| `profile` | Perfil por defecto (`wordpress`, `nextjs`, `canonical`). `--profile` manda si se pasa |
 | `sites` | Dominios propios. Un enlace absoluto a ellos, o a un subdominio, cuenta como interno |
 | `money_pages` | Páginas de conversión. Sin esto, `E-NO-CTA` queda apagado y el auditor lo avisa |
 | `url_prefix` | Prefijo del blog, para detectar enlaces a posts que no existen |

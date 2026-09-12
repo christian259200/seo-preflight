@@ -76,6 +76,13 @@ Señales reconocidas: `en resumen`, `en resumidas cuentas`, `lo más importante`
 `en pocas palabras`, `la respuesta corta`, `dicho de otro modo`, más sus
 equivalentes en inglés.
 
+Desde el 2026-05-07 Google no muestra resultados enriquecidos de FAQ para
+ningún sitio, así que `FAQPage` JSON-LD ya no da nada en la SERP. La regla
+no cambia: si la plantilla emite el schema, el contenido tiene que verse. Y
+la FAQ visible vale por sí misma, porque es lo que extraen los fragmentos
+destacados y las respuestas de IA. Registro con fuentes en
+[`google-updates.md`](../../pengu-seo/references/google-updates.md).
+
 `E-FAQ-INVISIBLE` solo aplica cuando el perfil declara
 `faq_needs_visible: true`, que hoy es únicamente `nextjs`. En WordPress el
 plugin renderiza el FAQ desde el frontmatter, así que el contenido siempre es
@@ -146,6 +153,13 @@ cuenta de enlaces internos y aparecía como enlace roto.
 |---|---|---|---|
 | `E-DASH` | ERROR | ningún guion largo ni corto | El rastro de IA más fácil de detectar |
 | `E-AI-MARKER` | ERROR | sin marcadores de plantilla | |
+| `W-AI-PHRASE` | WARN | sin muletillas de IA | Lo que un lector reconoce primero como texto generado |
+
+`W-AI-PHRASE` busca una lista corta de frases que ningún redactor usa
+hablando ("delve into", "tapestry of", "cabe destacar que", "un sinfín
+de", "al siguiente nivel"). Es corta a propósito: cada entrada tiene que ser
+rara en prosa humana, o el aviso se vuelve ruido. La lista está en
+`AI_PHRASES`, en `audit.py`.
 
 `E-DASH` da los números de línea. La comprobación cubre el archivo entero,
 frontmatter incluido.

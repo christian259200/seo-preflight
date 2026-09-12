@@ -106,6 +106,10 @@ Las preguntas del FAQ salen del `people_also_ask` de la SERP, que trae
 - Respondé en la primera frase, ampliá después
 - De 40 a 90 palabras por respuesta: menos no dice nada, más no se extrae
 - Texto plano, sin enlaces markdown dentro del YAML, que rompe el parseo
+- El schema `FAQPage` ya no da resultados enriquecidos en Google (desde el
+  2026-05-07). La FAQ visible sigue valiendo: es lo que extraen las
+  respuestas de IA. Si la plantilla emite el schema, que coincida con lo que
+  se ve, y punto
 
 ## Autoridad verificable
 
@@ -148,9 +152,18 @@ Allow: /
 Un `robots.txt` que solo permite los viejos deja fuera al rastreador que
 importa.
 
-Un `llms.txt` en la raíz, con la descripción del sitio y el índice de
-contenidos, ayuda a que un modelo entienda de qué va el sitio sin rastrearlo
-entero.
+Sobre `llms.txt`: Google dice en su propia guía (2026-06-29) que Google
+Search lo ignora, y ningún buscador de IA ha confirmado que lo lea. Lo usan
+sobre todo agentes de programación para cargar documentación. Publicarlo
+cuesta diez minutos y no hace daño, pero no es una palanca de citas y no se
+vende como tal. Lo que sí pesa es lo de arriba: párrafos que se sostienen
+solos, preguntas reales como H2, datos propios, autor con nombre y fecha de
+actualización. Google lo resume en una frase: optimizar para IA generativa
+es el mismo trabajo que el SEO de siempre.
+
+Cada afirmación de esta referencia que depende de lo que Google haga tiene
+su fecha y su fuente en
+[`google-updates.md`](../../pengu-seo/references/google-updates.md).
 
 ## Lo que no funciona
 

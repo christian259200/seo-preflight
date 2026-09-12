@@ -12,7 +12,7 @@ argument-hint: "[tema o keyword] [--to wordpress|nextjs]"
 license: MIT
 metadata:
   author: Christian Monge
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Pengu Write
@@ -125,7 +125,10 @@ Qué hace cada destino:
 La asimetría no es un capricho. La plantilla de Next.js emite `FAQPage` JSON-LD
 desde el frontmatter pero **no renderiza esas preguntas en la página**. Marcado
 sin contenido visible es marcado engañoso según Google, así que el renderizador
-escribe la sección para que coincidan.
+escribe la sección para que coincidan. Que Google haya retirado los
+resultados enriquecidos de FAQ (2026-05-07) no cambia esto: el schema sin
+contenido visible sigue siendo engañoso, y la sección visible es lo que
+extraen las respuestas de IA.
 
 ### Enlaces sin colocar
 

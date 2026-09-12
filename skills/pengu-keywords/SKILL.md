@@ -13,7 +13,7 @@ argument-hint: "[semilla] [--loc pais] [--lang idioma] [--gsc exportacion]"
 license: MIT
 metadata:
   author: Christian Monge
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Pengu Keywords

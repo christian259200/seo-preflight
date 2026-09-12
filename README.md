@@ -46,6 +46,13 @@ foreach ($s in "pengu-seo","pengu-keywords","pengu-write","pengu-audit") {
 }
 ```
 
+O como plugin, que además instala el hook que audita cada post al guardarlo:
+
+```
+/plugin marketplace add christian259200/seo-preflight
+/plugin install pengu-seo@seo-preflight
+```
+
 Requisitos: Python 3.9 o superior. **Solo biblioteca estándar.** `pyyaml` es
 opcional y mejora el parseo del frontmatter.
 
@@ -192,6 +199,36 @@ una garantía.
 - Producción real: cada trampa documentada en
   `skills/pengu-write/references/trampas.md` costó tiempo antes de estar ahí.
 
+## El sitio publicado, y qué cambió desde ayer
+
+El auditor de markdown no ve la plantilla. `site_check.py` pide cada URL del
+sitemap y comprueba robots, redirecciones de host, canonical, noindex, H1,
+título y JSON-LD. Con dos informes, dice qué cambió y cuánto importa:
+
+```bash
+python skills/pengu-audit/scripts/site_check.py https://www.example.com --json lunes.json
+python skills/pengu-audit/scripts/site_check.py https://www.example.com --json martes.json --compare lunes.json
+```
+
+Un canonical que cambió, un `noindex` nuevo o un H1 que desapareció salen
+como críticos y devuelven código 1. Un despliegue que rompe el SEO se ve el
+mismo día, no cuando cae el tráfico.
+
+## Auditar al guardar
+
+Instalado como plugin, un hook `PostToolUse` corre el auditor sobre cada
+post que Claude edite. Con errores, Claude ve el informe y lo corrige antes
+de seguir. Es la misma idea que el `prebuild`, una capa antes: la regla no
+espera al build, corre al guardar.
+
+## Lo que Google cambió
+
+Cada regla que depende de Google tiene fecha y fuente en
+[`skills/pengu-seo/references/google-updates.md`](skills/pengu-seo/references/google-updates.md).
+Dos que cambiaron consejos de aquí: Google Search ignora `llms.txt`
+(2026-06-29) y los resultados enriquecidos de FAQ se retiraron para todos
+los sitios (2026-05-07).
+
 ## Comprobar que todo funciona
 
 ```bash
@@ -207,6 +244,16 @@ Sale con código 1 si algo falla, así que sirve en CI.
 
 Está en [`schema/post.schema.md`](skills/pengu-seo/schema/post.schema.md). Son tres pasos, y la
 pregunta que decide el trabajo es qué renderiza esa plataforma sola.
+
+## Ideas prestadas
+
+La deriva entre dos comprobaciones, el hook que audita al guardar, el
+registro de cambios de Google con fuente obligatoria y el formato de
+recomendación falsable vienen de
+[claude-seo](https://github.com/AgriciDaniel/claude-seo) (MIT), recortados a
+lo que cabe en scripts de biblioteca estándar. Parte de la lista de
+muletillas de IA viene del catálogo de limpieza de Wikipedia y del mismo
+proyecto.
 
 ## Licencia
 

@@ -1,7 +1,7 @@
 {
   "name": "pengu-seo",
-  "version": "1.1.0",
-  "description": "Search Console primero, investigación de keywords con DataForSEO, redacción multiplataforma y auditoría on-page ejecutable. Cuatro skills que se llaman entre sí y comparten un formato de post canónico.",
+  "version": "1.2.0",
+  "description": "Search Console primero, investigación de keywords con control de gasto, redacción multiplataforma y auditoría on-page ejecutable que además corre al guardar. Cuatro skills que se llaman entre sí y comparten un formato de post canónico, más comprobación técnica del sitio publicado con deriva entre dos fechas.",
   "author": {
     "name": "Christian Monge",
     "url": "https://github.com/christian259200"
@@ -10,15 +10,18 @@
   "repository": "https://github.com/christian259200/seo-preflight",
   "license": "MIT",
   "keywords": [
-    "seo",
-    "dataforseo",
+    "ai-overview",
     "blog",
-    "keyword-research",
     "content-audit",
+    "dataforseo",
+    "drift",
     "geo",
-    "wordpress",
+    "hooks",
+    "keyword-research",
     "nextjs",
+    "plugin",
     "search-console",
-    "ai-overview"
+    "seo",
+    "wordpress"
   ]
 }

@@ -12,6 +12,7 @@ para no parecer un ataque.
     python site_check.py https://www.example.com
     python site_check.py https://www.example.com --limit 40 --md sitio.md
     python site_check.py https://www.example.com --only /blog/ --json sitio.json
+    python site_check.py https://www.example.com --json hoy.json --compare ayer.json
 
 Que comprueba, y por que (todo sale del curso de SEO y de la documentacion de
 Google):
@@ -25,12 +26,19 @@ Google):
                   H2 presentes, canonical autorreferente, sin noindex, sin
                   H1 vacio, sin encabezados que saltan de H1 a H3
 
-Codigo de salida 1 si hay errores, para engancharlo a un despliegue.
+Con --compare, ademas, dice que cambio desde un informe anterior (--json de
+otro dia): canonical que ya no es la misma, noindex nuevo, H1 o schema que
+desaparecieron, titulos y descripciones que cambiaron. Un despliegue que
+rompe el SEO se ve el mismo dia, no cuando cae el trafico.
+
+Codigo de salida 1 si hay errores o cambios criticos, para engancharlo a un
+despliegue.
 """
 
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import re
 import sys
@@ -45,7 +53,7 @@ from urllib.parse import urlparse, urlunparse
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-UA = "pengu-seo-site-check/1.1 (+https://github.com/christian259200/seo-preflight)"
+UA = "pengu-seo-site-check/1.2 (+https://github.com/christian259200/seo-preflight)"
 TITLE_MIN, TITLE_MAX = 30, 70
 DESC_MIN, DESC_MAX = 120, 160
 # Rastreadores que alimentan respuestas de IA. Bloquearlos quita las citas,
@@ -109,9 +117,16 @@ class Page(HTMLParser):
         self._in_title = False
         self._heading: int | None = None
         self._buf: list[str] = []
+        self.jsonld: list[str] = []
+        self._in_ld = False
+        self._ld: list[str] = []
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
+        if tag == "script" and (a.get("type") or "").lower() == "application/ld+json":
+            self._in_ld = True
+            self._ld = []
+            return
         if tag == "title" and not self.title:
             self._in_title = True
         elif tag == "meta":
@@ -127,6 +142,10 @@ class Page(HTMLParser):
             self._buf = []
 
     def handle_endtag(self, tag):
+        if tag == "script" and self._in_ld:
+            self._in_ld = False
+            self.jsonld += ld_types("".join(self._ld))
+            return
         if tag == "title":
             self._in_title = False
         elif tag in ("h1", "h2", "h3", "h4") and self._heading:
@@ -134,10 +153,36 @@ class Page(HTMLParser):
             self._heading = None
 
     def handle_data(self, data):
+        if self._in_ld:
+            self._ld.append(data)
         if self._in_title:
             self.title += data
         if self._heading:
             self._buf.append(data)
+
+
+def ld_types(raw: str) -> list[str]:
+    """Los @type de un bloque JSON-LD, incluidos los de @graph."""
+    try:
+        data = json.loads(raw.strip())
+    except (ValueError, TypeError):
+        return []
+    out: list[str] = []
+
+    def walk(node):
+        if isinstance(node, list):
+            for x in node:
+                walk(x)
+        elif isinstance(node, dict):
+            t = node.get("@type")
+            if isinstance(t, str):
+                out.append(t)
+            elif isinstance(t, list):
+                out.extend(x for x in t if isinstance(x, str))
+            walk(node.get("@graph"))
+
+    walk(data)
+    return out
 
 
 def parse(body: str) -> Page:
@@ -160,12 +205,12 @@ def normalize(url: str) -> str:
     return urlunparse((p.scheme, p.netloc.lower(), path, "", "", ""))
 
 
-def check_robots(origin: str) -> tuple[list, list, list]:
-    errors, warns, sitemaps = [], [], []
+def check_robots(origin: str) -> tuple[list, list, list, list]:
+    errors, warns, notes, sitemaps = [], [], [], []
     r = fetch(f"{origin}/robots.txt")
     if r["status"] != 200:
         errors.append(("ROBOTS-MISSING", f"robots.txt responde {r['status']}."))
-        return errors, warns, sitemaps
+        return errors, warns, notes, sitemaps
     body = r["body"]
     for line in body.splitlines():
         if line.lower().startswith("sitemap:"):
@@ -193,8 +238,8 @@ def check_robots(origin: str) -> tuple[list, list, list]:
         warns.append(("ROBOTS-DASH", "Guion largo en robots.txt. No rompe nada, pero la regla del sitio es sin guiones largos en ningun texto."))
     llms = fetch(f"{origin}/llms.txt")
     if llms["status"] != 200 or "<html" in llms["body"][:300].lower():
-        warns.append(("LLMS-TXT-MISSING", "Sin /llms.txt. Es un archivo de texto con las paginas clave y una linea por cada una; varios asistentes de IA lo leen para saber que citar."))
-    return errors, warns, sitemaps
+        notes.append(("LLMS-TXT-MISSING", "Sin /llms.txt. Google Search lo ignora (guia de optimizacion para IA generativa, 2026-06-29) y ningun buscador de IA ha confirmado que lo lea; lo usan sobre todo agentes de programacion. Cuesta diez minutos y no hace dano, pero no es una palanca de citas."))
+    return errors, warns, notes, sitemaps
 
 
 def read_sitemap(url: str, depth: int = 0) -> list[dict]:
@@ -254,6 +299,7 @@ def check_url(entry: dict, origin: str) -> dict:
     result["status"] = r["status"]
     if r["status"] != 200:
         e.append(("URL-STATUS", f"Responde {r['status']}{' tras ' + str(len(r['chain'])) + ' redirecciones' if r['chain'] else ''}. Una URL del sitemap tiene que responder 200 directa."))
+        result["snapshot"] = {"status": r["status"]}
         return result
     if r["chain"]:
         e.append(("SITEMAP-REDIRECT", f"El sitemap lista {url} pero redirige a {r['url']}. Lista la URL final."))
@@ -283,6 +329,11 @@ def check_url(entry: dict, origin: str) -> dict:
 
     h1s = [t for lvl, t in page.headings if lvl == 1]
     h2s = [t for lvl, t in page.headings if lvl == 2]
+    result["snapshot"] = {
+        "status": r["status"], "title": page.title, "description": page.description,
+        "canonical": page.canonical, "robots": page.robots, "h1": h1s, "h2": h2s,
+        "jsonld": page.jsonld,
+    }
     if len(h1s) == 0:
         e.append(("H1-MISSING", "Sin H1. Es el sitio mas fuerte para la keyword y esta vacio."))
     elif len(h1s) > 1:
@@ -302,6 +353,93 @@ def check_url(entry: dict, origin: str) -> dict:
 
 
 # --------------------------------------------------------------------------
+# deriva: que cambio entre dos informes
+# --------------------------------------------------------------------------
+
+CRITICAL, WARN, INFO = "critical", "warn", "info"
+
+
+def compare(prev: dict, cur: dict) -> list[dict]:
+    """Que cambio entre dos informes y cuanto importa.
+
+    Las reglas y los niveles salen de la practica de seo-drift (claude-seo,
+    MIT), recortadas a lo que este script mide sin API de pago. Critico es lo
+    que tumba trafico en dias: canonical distinto o ausente, noindex nuevo,
+    H1, titulo o schema que desaparecen, una URL que deja de responder 200.
+    Aviso es lo que a veces es intencional: titulo, descripcion o H1 que
+    cambian de texto. Informativo es el resto.
+    """
+    before = {normalize(u["url"]): u.get("snapshot") or {} for u in prev.get("urls", [])}
+    after = {normalize(u["url"]): u.get("snapshot") or {} for u in cur.get("urls", [])}
+    findings: list[dict] = []
+
+    def add(level, code, url, msg):
+        findings.append({"level": level, "code": code, "url": url, "message": msg})
+
+    def txt(x):
+        return " ".join((x or "").split())
+
+    for url, b in before.items():
+        a = after.get(url)
+        if a is None:
+            add(WARN, "DRIFT-URL-GONE", url, "Estaba en el sitemap y ya no esta.")
+            continue
+        if b.get("status") == 200 and a.get("status") != 200:
+            add(CRITICAL, "DRIFT-STATUS", url, f"Respondia 200 y ahora {a.get('status')}.")
+            continue
+        if a.get("status") != 200 or b.get("status") != 200:
+            continue
+        if b.get("canonical") and not a.get("canonical"):
+            add(CRITICAL, "DRIFT-CANONICAL-GONE", url, "Tenia canonical y ya no.")
+        elif b.get("canonical") and a.get("canonical") and normalize(b["canonical"]) != normalize(a["canonical"]):
+            add(CRITICAL, "DRIFT-CANONICAL", url, f"El canonical paso de {b['canonical']} a {a['canonical']}.")
+        if "noindex" not in (b.get("robots") or "") and "noindex" in (a.get("robots") or ""):
+            add(CRITICAL, "DRIFT-NOINDEX", url, "Ahora lleva noindex. Si no es a proposito, sale del indice en dias.")
+        if b.get("h1") and not a.get("h1"):
+            add(CRITICAL, "DRIFT-H1-GONE", url, f"Perdio el H1 '{b['h1'][0][:60]}'.")
+        elif b.get("h1") and a.get("h1"):
+            ratio = difflib.SequenceMatcher(None, txt(b["h1"][0]), txt(a["h1"][0])).ratio()
+            if ratio < 0.5:
+                add(WARN, "DRIFT-H1", url, f"El H1 cambio de '{b['h1'][0][:50]}' a '{a['h1'][0][:50]}'.")
+        if b.get("title") and not a.get("title"):
+            add(CRITICAL, "DRIFT-TITLE-GONE", url, "Perdio el <title>.")
+        elif txt(b.get("title")) != txt(a.get("title")):
+            add(WARN, "DRIFT-TITLE", url, f"Titulo: '{txt(b.get('title'))[:60]}' -> '{txt(a.get('title'))[:60]}'. Vigilar el CTR dos semanas.")
+        if txt(b.get("description")) != txt(a.get("description")):
+            add(WARN, "DRIFT-DESC", url, "La meta description cambio.")
+        b_ld, a_ld = sorted(b.get("jsonld") or []), sorted(a.get("jsonld") or [])
+        if b_ld and not a_ld:
+            add(CRITICAL, "DRIFT-SCHEMA-GONE", url, f"Desaparecio el JSON-LD ({', '.join(b_ld)}).")
+        elif not b_ld and a_ld:
+            add(INFO, "DRIFT-SCHEMA-NEW", url, f"JSON-LD nuevo: {', '.join(a_ld)}.")
+        elif b_ld != a_ld:
+            add(INFO, "DRIFT-SCHEMA", url, f"Tipos de schema: {', '.join(b_ld)} -> {', '.join(a_ld)}.")
+        if b.get("h2") is not None and a.get("h2") is not None and b["h2"] != a["h2"]:
+            add(INFO, "DRIFT-H2", url, f"Los H2 cambiaron ({len(b['h2'])} -> {len(a['h2'])}).")
+    for url in after:
+        if url not in before:
+            add(INFO, "DRIFT-URL-NEW", url, "URL nueva en el sitemap.")
+    order = {CRITICAL: 0, WARN: 1, INFO: 2}
+    return sorted(findings, key=lambda f: (order[f["level"]], f["url"]))
+
+
+def drift_markdown(report: dict) -> list[str]:
+    drift = report.get("drift")
+    if drift is None:
+        return []
+    since = report.get("compared_to", "el informe anterior")
+    out = [f"## Cambios desde {since}", ""]
+    if not drift:
+        out += ["Nada cambio en lo que este script mide.", ""]
+        return out
+    labels = {CRITICAL: "CRITICO", WARN: "aviso", INFO: "info"}
+    for f in drift:
+        out.append(f"- **{labels[f['level']]}** `{f['code']}` {f['url']}: {f['message']}")
+    out.append("")
+    return out
+
+
+# --------------------------------------------------------------------------
 
 def to_markdown(report: dict) -> str:
     out = [f"# Comprobacion tecnica: {report['origin']}", "",
@@ -313,6 +451,7 @@ def to_markdown(report: dict) -> str:
     if not report["site"]:
         out.append("- robots.txt, sitemap y redirecciones de host: todo en orden.")
     out.append("")
+    out += drift_markdown(report)
     bad = [u for u in report["urls"] if u["errors"] or u["warns"]]
     if bad:
         out += ["## URLs con hallazgos", ""]
@@ -343,13 +482,16 @@ def main() -> None:
     ap.add_argument("--only", help="solo URLs que contengan este texto, por ejemplo /blog/")
     ap.add_argument("--delay", type=float, default=0.4, help="segundos entre peticiones")
     ap.add_argument("--md")
-    ap.add_argument("--json")
+    ap.add_argument("--json", help="guarda el informe; sirve de base para --compare otro dia")
+    ap.add_argument("--compare", metavar="ANTERIOR.json",
+                    help="informe --json anterior; lista lo que cambio y cuanto importa")
     args = ap.parse_args()
 
     origin = args.origin.rstrip("/")
     site: list = []
-    r_err, r_warn, sitemaps = check_robots(origin)
+    r_err, r_warn, r_note, sitemaps = check_robots(origin)
     site += [("error", c, m) for c, m in r_err] + [("warn", c, m) for c, m in r_warn]
+    site += [("note", c, m) for c, m in r_note]
     site += check_host(origin)
 
     entries: list[dict] = []
@@ -379,6 +521,17 @@ def main() -> None:
         "totals": {"errors": sum(len(u["errors"]) for u in urls) + sum(1 for s in site if s[0] == "error"),
                    "warns": sum(len(u["warns"]) for u in urls) + sum(1 for s in site if s[0] == "warn")},
     }
+    critical = 0
+    if args.compare:
+        try:
+            prev = json.loads(Path(args.compare).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"No se pudo leer {args.compare}: {exc}")
+            sys.exit(1)
+        report["compared_to"] = prev.get("generated_at", args.compare)
+        report["drift"] = compare(prev, report)
+        critical = sum(1 for f in report["drift"] if f["level"] == CRITICAL)
+        report["totals"]["drift_critical"] = critical
     if args.md:
         Path(args.md).write_text(to_markdown(report), encoding="utf-8")
     if args.json:
@@ -387,7 +540,7 @@ def main() -> None:
         print(to_markdown(report))
     else:
         print(json.dumps(report["totals"] | {"urls": len(urls)}, indent=2))
-    sys.exit(1 if report["totals"]["errors"] else 0)
+    sys.exit(1 if report["totals"]["errors"] or critical else 0)
 
 
 if __name__ == "__main__":

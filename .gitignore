@@ -7,6 +7,8 @@
 # salidas de trabajo
 *.json
 !.claude-plugin/plugin.json
+!.claude-plugin/marketplace.json
+!hooks/hooks.json
 !pengu-seo.example.json
 plan.md
 informe*.txt

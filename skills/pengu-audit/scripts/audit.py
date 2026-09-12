@@ -96,6 +96,31 @@ FLUFF_OPENERS = (
     "it's no secret that", "in the world of",
 )
 
+# Muletillas de IA. No son marcadores de plantilla (eso es E-AI-MARKER, y
+# corta): son frases que un lector reconoce a la primera como texto generado
+# y que ningun redactor usa hablando. Lista corta a proposito: cada entrada
+# tiene que ser rara en prosa humana, o el aviso se vuelve ruido. Parte de la
+# lista viene del catalogo de limpieza de IA de Wikipedia y de claude-seo.
+AI_PHRASES = (
+    # ingles
+    "delve into", "delve deeper", "tapestry of", "ever-evolving",
+    "ever-changing landscape", "navigating the complexities",
+    "embark on a journey", "a testament to", "a beacon of",
+    "it's worth noting that", "it is worth noting that", "game-changer",
+    "unlock the potential", "unlock the power", "harness the power",
+    "in the realm of", "seamlessly integrate", "cutting-edge",
+    "elevate your", "look no further", "dive deep into", "a plethora of",
+    "in today's digital age", "revolutionize the way",
+    # espanol
+    "sumergirse en el", "sumerjamonos", "adentremonos",
+    "es importante destacar que", "cabe destacar que", "sin lugar a dudas",
+    "un sinfin de", "a la vanguardia de", "en un mundo cada vez mas",
+    "juega un papel crucial", "juega un papel fundamental",
+    "desbloquea el potencial", "desbloquear el potencial", "no busques mas",
+    "al siguiente nivel", "en el vertiginoso mundo", "tapiz de", "faro de",
+    "es un testimonio de", "vale la pena senalar que", "revoluciona la forma",
+)
+
 STOP_URL = {"de", "la", "el", "los", "las", "un", "una", "y", "o", "en", "para",
             "por", "con", "the", "a", "an", "of", "for", "and", "or", "to", "in"}
 
@@ -569,6 +594,13 @@ def audit_file(path: Path, profile: dict, site_root: Path | None,
         if fold(marker) in low_text:
             report.error("E-AI-MARKER", f"Marcador sin limpiar: '{marker}'.",
                          "Borralo antes de publicar.")
+    found_phrases = [p for p in AI_PHRASES if fold(p) in low_text]
+    if found_phrases:
+        report.warn("W-AI-PHRASE",
+                    f"{len(found_phrases)} muletillas de IA: "
+                    f"{', '.join(found_phrases[:5])}.",
+                    "Son las frases que un lector reconoce primero como "
+                    "texto generado. Decilo con palabras normales o borralo.")
 
     # --- extraccion para buscadores de IA --------------------------------
     if not any(fold(cue) in low_text for cue in SEMANTIC_CUES):
@@ -850,7 +882,8 @@ def render(reports: list, strict: bool) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser(description="Auditor on-page ejecutable.")
     ap.add_argument("target", help="archivo .md o carpeta")
-    ap.add_argument("--profile", choices=sorted(PROFILES), default="canonical")
+    ap.add_argument("--profile", choices=sorted(PROFILES), default=None,
+                    help="por defecto el de pengu-seo.json, o canonical")
     ap.add_argument("--site-root", help="raiz del sitio, para verificar imagenes")
     ap.add_argument("--url-prefix", default=None,
                     help="prefijo de las URLs del blog, para detectar enlaces "
@@ -885,7 +918,12 @@ def main() -> None:
             sys.exit(1)
 
     # La linea de comandos manda sobre el archivo, y el archivo sobre el perfil.
-    profile = dict(PROFILES[args.profile])
+    profile_name = args.profile or config.get("profile") or "canonical"
+    if profile_name not in PROFILES:
+        print(f"Perfil desconocido en {CONFIG_NAME}: {profile_name}. "
+              f"Vale uno de {', '.join(sorted(PROFILES))}.")
+        sys.exit(1)
+    profile = dict(PROFILES[profile_name])
     profile["sites"] = args.site or config.get("sites", [])
     profile["money_pages"] = ([unmangle(m) for m in args.money_page]
                               or config.get("money_pages")
@@ -911,7 +949,7 @@ def main() -> None:
 
     if args.json:
         Path(args.json).write_text(
-            json.dumps({"profile": args.profile,
+            json.dumps({"profile": profile_name,
                         "files": [r.as_dict() for r in reports]},
                        ensure_ascii=False, indent=2), encoding="utf-8")
 
